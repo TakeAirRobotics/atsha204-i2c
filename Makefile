@@ -17,10 +17,10 @@ clean:
 
 install:
 	sudo cp atsha204-i2c.ko $(MDIR)
-	-sudo insmod atsha204-i2c.ko
-	-echo atsha204-i2c 0x60 | sudo tee /sys/class/i2c-adapter/i2c-1/new_device
-	sudo chgrp i2c /dev/atsha0
-	sudo chmod 664 /dev/atsha0
+	#-sudo insmod atsha204-i2c.ko
+	#-echo atsha204-i2c 0x60 | sudo tee /sys/class/i2c-adapter/i2c-1/new_device
+	#sudo chgrp i2c /dev/atsha0
+	#sudo chmod 664 /dev/atsha0
 
 
 check:

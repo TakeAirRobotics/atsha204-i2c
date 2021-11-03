@@ -418,6 +418,7 @@ struct atsha204_chip *atsha204_i2c_register_hardware(struct device *dev,
         dev_set_drvdata(dev, chip);
 
         chip->client = client;
+	global_chip = chip;
 
         mutex_init(&chip->transaction_mutex);
 
