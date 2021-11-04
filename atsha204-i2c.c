@@ -237,7 +237,7 @@ int atsha204_i2c_wakeup(const struct i2c_client *client)
                         pr_info("Wake-up attempt %u failed. Retrying.\n",try_con);
                         if(try_con >= 10){
                                 pr_err("Wakeup Failed. No Device");
-                                return retval;
+                                return -ENODEV;
                         }
                 }
 
