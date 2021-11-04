@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/i2c.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/kfifo.h>
@@ -48,7 +49,7 @@ int atsha204_i2c_get_random(u8 *to_fill, const size_t max)
                         memcpy(to_fill, &recv.ptr[1], rnd_len);
                         rc = rnd_len;
                         dev_info(global_chip->dev, "%s: %d\n",
-                                 "Returning randoom bytes", rc);
+                                 "Returning random bytes", rc);
                 }
 
         }
@@ -179,30 +180,61 @@ int atsha204_i2c_wakeup(const struct i2c_client *client)
         bool is_awake = false;
         int retval = -ENODEV;
 
-        u8 buf[4] = {0};
 
-        unsigned short int try_con = 1;
+	// Determine how many low bytes to send to achieve 60us on SDA
+        u8 buf[8] = {0}; //Max 60 bits required at 1MHz
+
+        u32 bus_clk_rate;
+        u32 no_of_bits;
+        int ret;
+        size_t no_of_bytes;
+        u8 try_con;
+
+	// Get i2c bus clock rate
+	bus_clk_rate = i2c_acpi_find_bus_speed(&client->adapter->dev);
+	if (!bus_clk_rate) {
+		ret = device_property_read_u32(&client->adapter->dev,
+					       "clock-frequency", &bus_clk_rate);
+		if (ret) {
+			pr_err("failed to read clock-frequency property\n");
+			return ret;
+		}
+	}
+
+	if (bus_clk_rate > 1000000L) {
+		pr_err("%u exceeds maximum supported clock frequency of 1MHz\n", bus_clk_rate);
+		return -EINVAL;
+	}
+
+	// How many bits correspond to a time of t_WLO? (Wakeup time, 60us)
+	no_of_bits = DIV_ROUND_UP(60 * bus_clk_rate, USEC_PER_SEC);
+	no_of_bytes = DIV_ROUND_UP(no_of_bits, 8);
+
+
+        try_con = 1;
 
         while (!is_awake){
-                if (4 == i2c_master_send(client, buf, 4)){
-                        pr_debug("%s\n", "ATSHA204 Device is awake.");
-                        is_awake = true;
-
-                        if (4 == i2c_master_recv(client, buf, 4)){
-                                pr_debug("%s", "ATSHA204 Received wakeup\n");
-                        }
-
-
-                        if (atsha204_check_rsp_crc16(buf,4))
-                                retval = 0;
-                        else
-                                pr_err("%s\n", "ATSHA204 Wakeup CRC failure");
-
-
-                }
-                else{
-                        /* is_awake is already false */
-                        pr_info("Attempting Wakeup : %u\n",try_con);
+        	// Send 0s to assert SDA low for the required time. This is not i2c-spec so
+        	// will generate warnings that device is not ACK-ing. I haven't got 
+        	// i2c_transfer_buffer_flags(client, buf, no_of_bytes, I2C_M_IGNORE_NAK);
+        	// to compile :(
+        	i2c_master_send(client, buf, no_of_bytes);
+        	// Wait 1.5ms, IC needs to perform some tasks before waking up
+        	usleep_range(1500, 1550);
+        	
+        	ret = i2c_master_recv(client, buf, 4);
+	        if (4 == ret) {
+	        	if (atsha204_check_rsp_crc16(buf,4)) {
+	        	        pr_debug("%s", "ATSHA204 Received wakeup\n");
+                        	is_awake = true;
+                        	retval = 0;
+	                } else {
+        	                pr_err("%s\n", "ATSHA204 Wakeup CRC failure");
+        	        }
+                
+                } else {
+                        /* device did not wake or is not responding */
+                        pr_info("Wake-up attempt %u failed. Retrying.\n",try_con);
                         if(try_con >= 10){
                                 pr_err("Wakeup Failed. No Device");
                                 return retval;

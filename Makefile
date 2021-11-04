@@ -16,7 +16,10 @@ clean:
 	-rm -rf $$PWD/test/test.o $$PWD/test/test TAGS
 
 install:
+	-sudo rmmod atsha204-i2c
 	sudo cp atsha204-i2c.ko $(MDIR)
+	sudo depmod -a
+	sudo modprobe atsha204-i2c
 	#-sudo insmod atsha204-i2c.ko
 	#-echo atsha204-i2c 0x60 | sudo tee /sys/class/i2c-adapter/i2c-1/new_device
 	#sudo chgrp i2c /dev/atsha0
