@@ -2,6 +2,8 @@
 /*
  * I2C Driver for Atmel ATSHA204 over I2C
  *
+ * Copyright (C) 2021 Joost Weijs, Take-Air, joost.weijs@take-air.fr
+ * Copyright (C) 2021 Alexis Tantot, Take-Air, alexis.tantot@take-air.fr
  * Copyright (C) 2014 Josh Datko, Cryptotronix, jbd@cryptotronix.com
  *
  * This program is free software; you can redistribute  it and/or modify it
